@@ -32,7 +32,7 @@ function rdflib_url (item) {
 
 
 function process_ontology(store) {
-
+  resource.term = {}
   // Compose reverse lookup table to quickly match uri prefix.
   Object.keys(resource['@context']).forEach(function (item) {
     resource.reverse_c[resource['@context'][item]] = item
@@ -123,7 +123,7 @@ function process_ontology(store) {
     i++
   }
 
-  //console.log(resource);
+  // console.log(resource);
   return resource
 }
 

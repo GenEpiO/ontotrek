@@ -99,22 +99,114 @@ if (auto_load) {
     $("#ontology").trigger('change')
 }
 
+// Saves an object as a JSON
+function save(blob, filename) {
+  var link = document.createElement('a');
+  link.style.display = 'none';
+  document.body.appendChild(link);
+
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+}
+
+// Helper function to save nodes/links as JSON
+function saveString(text, filename) {
+
+  save(new Blob([text], { type: 'text/plain' }), filename);
+
+}
+
 
 function init_interface() {
   // Selection list of all node labels allows user to zoom in on one
   $("#ontology")
     .on('change', function(item){
       if (this.value > '') {
-          load_data(this.value, do_graph);
+        const nodes_url = $("select#ontology option").filter(':selected')[0].dataset.nodes
+        const links_url = $("select#ontology option").filter(':selected')[0].dataset.links
+        const metadata_url = $("select#ontology option").filter(':selected')[0].dataset.metadata
+        if (metadata_url && nodes_url && links_url) {
+          load_data(this.value, load_graph)
+        }
+        else {
+          load_data(this.value, do_graph)
+        }
       }
     })
 
   $("#ontology").chosen({placeholder_text_single: 'Select an item ...'})
 
+  // Allows user to re-render the ontology instead of loading up a snapshot
+  $("#rerender_button").on('click', function(item){
+    const url = $("#ontology").val()
+    if (url > '') {
+      load_data(url, do_graph)
+    }
+  })
+
+  // Allows the user to download JSONs for the nodes and links of the ontology
+  $("#download_button").on('click', function(item){
+    const { nodes, links } = top.GRAPH.graphData();
+    saveString(JSON.stringify(nodes), 'nodes.json')
+    saveString(JSON.stringify(links), 'links.json')
+    saveString(JSON.stringify(top.RAW_DATA), 'metadata.json')
+  })
+
   // Selection list of all node labels allows user to zoom in on one
   $("#label_search").on('change', function(item){
     if (this.value != '')
+      console.log(this.value)
       setNodeReport(top.dataLookup[this.value])
+  })
+
+  $("#upload_nodes").on('change', function(event) {
+    var reader = new FileReader();
+
+    reader.onload = function(event) {
+      top.NODES_JSON = JSON.parse(event.target.result);
+    }
+
+    reader.readAsText(event.target.files[0]);
+  })
+
+  $("#upload_links").on('change', function(event) {
+    var reader = new FileReader();
+
+    reader.onload = function(event) {
+      top.LINKS_JSON = JSON.parse(event.target.result);
+    }
+
+    reader.readAsText(event.target.files[0]);
+  })
+
+  $("#upload_metadata").on('change', function(event) {
+    var reader = new FileReader();
+
+    reader.onload = function(event) {
+      top.METADATA_JSON = JSON.parse(event.target.result);
+    }
+
+    reader.readAsText(event.target.files[0]);
+  })
+
+  // Uploads JSON files for the nodes/links/metadata
+  $("#upload_json_button").on('click', function(item){
+    const nodes_url = $("#upload_nodes").val()
+    const links_url = $("#upload_links").val()
+    const metadata_url = $("#upload_metadata").val()
+
+    if (nodes_url > '' && links_url > '' && metadata_url > '') {
+      try {
+        load_uploaded_graph()
+      }
+      catch (err) {
+        alert("Something is wrong with the JSON files, maybe check that the correct files were uploaded")
+        data = null;
+      }
+    } else {
+      alert('Upload all three JSON files (nodes, links and metadata)')
+    }
   })
 
   //$("#ontology_url").on('change', function(item) {
@@ -1024,6 +1116,7 @@ function setNodeReport(node = {}) {
   // Aim viewport camera at node from z dimension
   // Unfortunately camera animations cause it to loose its "UP" position.  
   // Solution?
+  console.log(node)
   if (node.x) {
 
     // Color assigned here but rendered color isn't actually affected until 
